@@ -11,8 +11,12 @@
 #define HT1632_DATA_PIN 10 /* Arduino digital pin connected to display DATA pin */
 #define HT1632_WRCLK_PIN 11 /* Arduino digital pin connected to display WRCLK pin */
 #define HT1632_CS_PIN 4 /* Arduino digital pin connected to display CS1 pin */
-#define HT1632_GEOMETRY_X 24 /* display width */
-#define HT1632_GEOMETRY_Y 16 /* display height */
+#define HT1632_GEOMETRY_X 32 /* display width */
+#define HT1632_GEOMETRY_Y 8 /* display height */
+
+// NOTE: THIS HARDCODES THE DIMENSIONS OF THE 3208! CHANGE!
+#define GET_ADDR_FROM_X_Y(_x,_y) ((_x)*2+(_y)/4)
+
 
 /*
  * commands written to the chip consist of a 3 bit "ID", followed by
@@ -22,6 +26,7 @@
 #define HT1632_ID_RD  6		/* ID = 110 - Read RAM */
 #define HT1632_ID_WR  5		/* ID = 101 - Write RAM */
 #define HT1632_ID_BITS (1<<2)   /* IDs are 3 bits */
+#define HT1632_ID_LEN 3
 
 #define HT1632_CMD_SYSDIS 0x00	/* CMD= 0000-0000-x Turn off oscil */
 #define HT1632_CMD_SYSON  0x01	/* CMD= 0000-0001-x Enable system oscil */
@@ -69,6 +74,7 @@ class ht1632c
 	void clear(void);
 	void set_font(byte, byte);
 	void put_char(byte, byte, char);
+	void put_char(byte x, byte y, char c, bool invert);
 	void putstring(byte, byte, char*);
 	void flashing_cursor(byte, byte, byte, byte, byte);
 	void fade_down(void);
@@ -90,6 +96,7 @@ class ht1632c
     void fill (byte x, byte y, byte color);
     void bezier(int x0, int y0, int x1, int y1, int x2, int y2, byte color);
 	void scrolltext(int y, const char *text, int delaytime, int times, byte dir);
+	void scrolltext(int y, const char *text, int delaytime, int times, byte dir, bool invert);
 };
 
 extern ht1632c ht1632;

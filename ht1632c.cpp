@@ -51,7 +51,8 @@ void ht1632c::plot (char x, char y, char val) {
 
   bitval = 8>>(y&3);  // compute which bit will need set
 
-  addr = (x<<2) + (y>>2);  // compute which memory word this is in 
+  addr = GET_ADDR_FROM_X_Y(x,y);
+  //addr = (x<<2) + (y>>2);  // compute which memory word this is in 
 
   if (val) {  // Modify the shadow memory
     _shadowram[(d * 96)  + addr] |= bitval;
@@ -107,6 +108,54 @@ void ht1632c::put_char(byte x, byte y, char c) {
       		else 
         		plot(x+col, y+row, 0);
     	}
+  	}
+  } else {
+	for (byte row=0; row < _font_height; row++)
+	{
+		dots = pgm_read_byte_near(&ht1632c_font_5x12[c][row]);
+		for (byte col=0; col<_font_width; col++)
+		{
+			if (bitRead(dots, 7-col))
+				plot(x+col, y+row, 1);
+			else 
+				plot(x+col, y+row, 0);
+		}
+	}
+  }
+}
+
+void ht1632c::put_char(byte x, byte y, char c, bool invert) {
+  byte dots;
+  c = c - 32; // offset
+  if (_font_height <= 8) {
+	for (char col=0; col< _font_width; col++) {
+		switch (_font_width) {
+		case 3:
+			dots = pgm_read_byte_near(&ht1632c_font_3x5[c][col]);
+		break;
+		case 4:
+			dots = pgm_read_byte_near(&ht1632c_font_4x7[c][col]);
+		break;
+		case 5:
+			dots = pgm_read_byte_near(&ht1632c_font_5x7[c][col]);
+		break;
+		}
+		if(invert) {
+			for (char row=0; row < _font_height; row++) {
+				if (bitRead(dots, 7-row))
+					plot(x+col, y+row, 0);
+				else 
+					plot(x+col, y+row, 1);
+			}
+		}
+		else {
+			for (char row=0; row < _font_height; row++) {
+				if (bitRead(dots, 7-row))
+					plot(x+col, y+row, 1);
+				else 
+					plot(x+col, y+row, 0);
+			}
+		}
   	}
   } else {
 	for (byte row=0; row < _font_height; row++)
@@ -229,16 +278,21 @@ void ht1632c::setup(byte data, byte wrclk, byte displays) {
 		pinMode(HT1632_CS_PIN, OUTPUT);
 
 		digitalWriteFast2(HT1632_CS_PIN, HIGH);  // Unselect (active low)
-		 
+		
+
 		pinMode(HT1632_WRCLK_PIN, OUTPUT);
 		pinMode(HT1632_DATA_PIN, OUTPUT);
 
+		senddata(d, HT1632_ID_CMD, HT1632_ID_LEN); 
+		
 		sendcmd(d, HT1632_CMD_SYSON);    // System on 
+		//sendcmd(d, HT1632_CMD_SYSDIS);
 		sendcmd(d, HT1632_CMD_LEDON);    // LEDs on 
-		sendcmd(d, HT1632_CMD_COMS01);   // NMOS Output 24 row x 24 Com mode
+		sendcmd(d, HT1632_CMD_COMS00);   // NMOS Output 24 row x 24 Com mode
 
-		for (byte i=0; i<128; i++)
-	  		senddata(d, i, 0);  // clear the display!
+		clear();
+		//for (byte i=0; i<128; i++)
+	  	//	senddata(d, i, 0);  // clear the display!
 	}
 	
 	direct_write(true);
@@ -445,6 +499,37 @@ void ht1632c::scrolltext(int y, const char *text, int delaytime, int times, byte
 		if (coord < -char_length || coord > _geometry_x) continue;		
         	put_char(coord,  y, text[i]);
 		line(xx, y, xx, y+char_height, 0);
+      }
+	  //render();
+	  //direct_write(true);
+      c++;
+      delay(delaytime);
+    }
+    times--;
+  }
+}
+
+void ht1632c::scrolltext(int y, const char *text, int delaytime, int times, byte dir, bool invert)
+{
+  int c = 0, x, len = strlen(text) + 0;
+  byte char_length = _font_width+1;
+  byte char_height = _font_height;
+  while (times) {
+	for(int i=_geometry_x; i>=0;i--) {
+		for(int j=_geometry_y; j>=0;j--) {
+			plot(i,j,invert);
+		}
+	}
+    for ((dir) ? x = - (len * char_length) : x = _geometry_x; (dir) ? x <= _geometry_x : x > - (len * char_length); (dir) ? x++ : x--)
+    {
+	  //direct_write(false);
+	  for (int i = 0; i < len; i++)
+      {
+		int coord = x + char_length * i;
+		int xx = coord + char_length-1;
+		if (coord < -char_length || coord > _geometry_x) continue;
+        	put_char(coord, y , text[i], invert);
+		line(xx, y, xx, y+char_height, invert);
       }
 	  //render();
 	  //direct_write(true);
